@@ -1,0 +1,33 @@
+# Sensitive info
+.env
+*.env
+iptv_dbt/profiles.yml
+
+# Data & Virtual Env
+dataset/
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+.terraform.lock.hcl
+
+# dbt
+target/
+dbt_modules/
+dbt_packages/
+logs/
+
+# Airflow
+airflow/logs/
+airflow/db/
+
+# System
+*.log
+.DS_Store
+.vscode/

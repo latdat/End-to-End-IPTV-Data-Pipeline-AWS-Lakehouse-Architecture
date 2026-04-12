@@ -1,0 +1,37 @@
+version: 2
+sources:
+  - name: staging
+    database: dev
+    schema: staging
+    tables:
+      - name: viewing_history
+        description: "Raw IPTV viewing history loaded from S3 Silver"
+        columns:
+          - name: event_id
+            tests:
+              - not_null
+              - unique:
+                  config:
+                    severity: warn
+          - name: contract_id
+            tests:
+              - not_null
+          - name: total_duration_seconds
+            tests:
+              - not_null
+              - dbt_utils.accepted_range:
+                  min_value: 0
+                  max_value: 86400
+          - name: app_name
+            tests:
+              - not_null
+              - accepted_values:
+                  values: ['CHANNEL', 'VOD', 'CHILD', 'KPLUS', 'RELAX', 'SPORT', 'FIMS', 'BHD', 'APP']
+          - name: batch_date
+            tests:
+              - not_null
+        tests:
+          - dbt_utils.unique_combination_of_columns:
+              combination_of_columns: [event_id, batch_date]
+              config:
+                severity: warn

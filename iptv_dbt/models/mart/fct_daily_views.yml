@@ -1,0 +1,23 @@
+version: 2
+models:
+  - name: fct_daily_views
+    description: "Daily viewing stats aggregated by app_name"
+    columns:
+      - name: batch_date
+        tests:
+          - not_null
+      - name: unique_contracts
+        tests:
+          - not_null
+      - name: total_seconds
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+      - name: avg_minutes_per_session
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+      - name: pk
+        tests:
+          - not_null
+          - unique
