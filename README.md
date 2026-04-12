@@ -8,9 +8,40 @@
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 ![Terraform](https://img.shields.io/badge/Terraform-IaC-7B42BC?logo=terraform&logoColor=white)
 
+## Mục lục
+
+- [Tổng quan](#tổng-quan)
+  - [Sơ đồ kiến trúc (Architecture Diagram)](#sơ-đồ-kiến-trúc-architecture-diagram)
+  - [Vấn đề đặt ra](#vấn-đề-đặt-ra)
+  - [Mục tiêu](#mục-tiêu)
+  - [Giá trị mang lại](#giá-trị-mang-lại)
+  - [Giai đoạn hiện tại](#giai-đoạn-hiện-tại)
+  - [Trực quan dữ liệu (Data Visualization)](#trực-quan-dữ-liệu-data-visualization)
+
+- [Kiến trúc hệ thống (Architecture)](#kiến-trúc-hệ-thống-architecture)
+- [Công nghệ sử dụng (Tech Stack)](#công-nghệ-sử-dụng-tech-stack)
+- [Cấu trúc project (Project Structure)](#cấu-trúc-project-project-structure)
+
+- [Lược đồ dữ liệu (Data Schema)](#lược-đồ-dữ-liệu-data-schema)
+  - [Dữ liệu thô — Bronze Layer](#dữ-liệu-thô--bronze-layer)
+  - [Dữ liệu sạch — Silver Layer](#dữ-liệu-sạch--silver-layer-parquet)
+  - [Dữ liệu phân tích — Gold Layer](#dữ-liệu-phân-tích--gold-layer-redshift)
+
+- [Pipeline Airflow — DAG](#pipeline-airflow--dag-iptv_pipeline)
+
+- [Cách chạy (How to run)](#cách-chạy-how-to-run)
+  - [Yêu cầu](#yêu-cầu)
+  - [Các bước](#các-bước)
+
+- [Kết quả](#kết-quả)
+- [Bài học kinh nghiệm (Lessons Learned)](#bài-học-kinh-nghiệm-lessons-learned)
+- [Triển khai & Mở rộng (Production & Future Improvements)](#triển-khai--mở-rộng-production--future-improvements)
+- [Liên hệ (Contact)](#liên-hệ-contact)
+
+
 ---
 ## Tổng quan
-### Architecture Diagram
+### Sơ đồ kiến trúc (Architecture Diagram)
 ![Cloud-Native Data Lakehouse Architecture](images/architecture.png)
 ### Vấn đề đặt ra
 
@@ -34,11 +65,11 @@ Pipeline này giúp:
 > **Repository này mô tả giai đoạn chạy pipeline trong môi trường Docker cục bộ.**
 > Toàn bộ hạ tầng AWS (EC2, Glue, Redshift Serverless) được định nghĩa qua Terraform và đã sẵn sàng để triển khai. Logic của pipeline đã hoạt động đầy đủ và được kiểm thử end-to-end trong Docker.
 
-### Data Visualization
+### Trực quan dữ liệu (Data Visualization)
 ![User Engagement Dashboard](images/powerbi-dashboard.png)
 ---
 
-## Architecture
+## Kiến trúc hệ thống (Architecture)
 Pipeline xử lý theo batch hàng ngày:
 S3 (Landing) → Glue (ETL) → S3 (Silver) → Redshift → dbt (Gold)
 ```
@@ -77,7 +108,7 @@ Raw JSON Logs
 
 ---
 
-## Tech Stack
+## Công nghệ sử dụng (Tech Stack)
 
 | Lớp           | Công nghệ                          | Mục đích                                  |
 |------------------|--------------------------------------|------------------------------------------|
@@ -90,14 +121,15 @@ Raw JSON Logs
 | IaC              | Terraform                            | Hạ tầng AWS dưới dạng mã nguồn             |
 | Language         | Python 3.12                          | Airflow DAGs, mã nạp dữ liệu          |
 
-**Lý do lựa chọn stack:**
-- AWS Glue: serverless, phù hợp batch ETL
-- Redshift Serverless: tối ưu cho analytical workload (Có thể thay bằng Athena để tối ưu chi phí)
-- dbt: chuẩn hóa transformation + test + lineage
-- Airflow: orchestration linh hoạt, hỗ trợ backfill tốt
+**Lý do lựa chọn stack (Design Decisions)**
+- AWS Glue & Redshift Serverless: Mô hình NoOps, tự động mở rộng và chỉ trả tiền khi sử dụng.
+    - Note: Có thể thay Redshift bằng Athena để tối ưu chi phí (Pay-per-query), chấp nhận đánh đổi về độ trễ (latency).
+- dbt: Áp dụng tư duy kỹ thuật phần mềm vào SQL (Lineage, Testing, Version Control).
+- Apache Airflow: Điều phối các phụ thuộc (Dependencies) phức tạp, hỗ trợ Backfill và Retry mạnh mẽ.
+- Terraform: Đảm bảo tính nhất quán của hạ tầng, dễ dàng tái bản môi trường qua code.
 ---
 
-## Project Structure
+## Cấu trúc project (Project Structure)
 
 ```
 IPTV_DE/
@@ -135,7 +167,7 @@ IPTV_DE/
 
 ---
 
-## Data Schema
+## Lược đồ dữ liệu (Data Schema)
 
 ### Dữ liệu thô — Bronze Layer
 
@@ -211,7 +243,7 @@ Output từ job AWS Glue, được lưu trên S3 và partition theo year/month/d
 
 ---
 
-## Airflow Pipeline — DAG: `iptv_pipeline`
+## Pipeline Airflow — DAG: iptv_pipeline
 - Các task được cấu hình retry và timeout để đảm bảo pipeline ổn định
 
 ![Airflow DAG Graph - Success](images/airflow-dag-success.png)
@@ -229,7 +261,7 @@ Output từ job AWS Glue, được lưu trên S3 và partition theo year/month/d
 
 
 ---
-## Local Setup (Docker)
+## Cách chạy (How to run)
 
 ### Yêu cầu
 
@@ -267,6 +299,11 @@ DBT_PROFILES_DIR=/opt/airflow/iptv_dbt
 ```bash
 docker-compose up -d
 ```
+Đợi khoảng 30-60 giây rồi kiểm tra các container đã healthy chưa:
+```bash
+docker ps
+```
+Đảm bảo thấy `airflow-scheduler`, `airflow-webserver`, `airflow-worker` đều ở trạng thái `healthy`.
 
 **4. Truy cập Airflow UI**
 
@@ -280,7 +317,8 @@ python ingestion/upload_to_s3.py --date 2022-04-01
 **6. Khởi chạy pipeline (3 lựa chọn)**
 
 - Option A: Tự động (Scheduler): Dành cho dữ liệu hằng ngày.
-Chỉ cần bật (Enable) DAG trên UI, Airflow sẽ tự động phát hiện file mới trong landing/ và xử lý theo lịch trình @daily.
+Airflow sẽ tự động chạy mỗi ngày, đọc batch_date từ execution_date
+và tìm file tương ứng trong bronze/ hoặc landing/ trên S3.
 
 - Option B: Chạy bù dữ liệu lịch sử (Backfill): Dành cho nạp dữ liệu quá khứ.
 ```bash
@@ -307,9 +345,9 @@ Truy vấn từ `mart.fct_daily_views` sau khi hoàn thành pipeline:
 
 ---
 
-## Bài học
+## Bài học kinh nghiệm (Lessons Learned)
 
-**1.Airflow XCom & thiết kế luồng xử lý đơn (single-path)**
+**1. Airflow XCom & thiết kế luồng xử lý đơn (single-path)**
 - Ban đầu DAG sử dụng BranchPythonOperator với hai nhánh manual và auto, dẫn đến lỗi XCom “silent” khi thiếu task_ids trong xcom_pull. Sau đó refactor về một task duy nhất check_and_prepare sử dụng ds_nodash — giúp đơn giản hóa logic, giảm lỗi và dễ debug hơn. 
 
 **2.Catchup và Backfill qua CLI**
@@ -326,7 +364,7 @@ Truy vấn từ `mart.fct_daily_views` sau khi hoàn thành pipeline:
 
 ---
 
-## Production & Future Improvements
+## Triển khai & Mở rộng (Production & Future Improvements)
 
 - [ ] Triển khai toàn bộ hạ tầng lên AWS (EC2, S3, Glue, Redshift) thông qua terraform apply
 - [ ] Tích hợp Great Expectations để kiểm tra chất lượng dữ liệu đầu vào tại Bronze layer
@@ -336,7 +374,7 @@ Truy vấn từ `mart.fct_daily_views` sau khi hoàn thành pipeline:
 
 ---
 
-## Contact
+## Liên hệ (Contact)
 
 **Nguyen Phuc Vinh**
 - Email: phucvinh235371@gmail.com
