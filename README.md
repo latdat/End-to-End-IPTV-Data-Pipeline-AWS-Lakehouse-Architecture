@@ -1,4 +1,6 @@
 # IPTV Viewing History — End-to-End Analytics Pipeline
+<a name="top"></a>
+
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![Apache Airflow](https://img.shields.io/badge/Airflow-2.x-017CEE?logo=apacheairflow&logoColor=white)
 ![AWS S3](https://img.shields.io/badge/AWS_S3-Lakehouse-FF9900?logo=amazons3&logoColor=white)
@@ -7,6 +9,8 @@
 ![Redshift](https://img.shields.io/badge/Redshift-Serverless-8C4FFF?logo=amazonredshift&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 ![Terraform](https://img.shields.io/badge/Terraform-IaC-7B42BC?logo=terraform&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-yellow.svg)
+> ⭐ **If this project helps you, please consider giving it a star on GitHub!** ⭐
 
 ## Mục lục
 
@@ -16,7 +20,7 @@
   - [Mục tiêu](#mục-tiêu)
   - [Giá trị mang lại](#giá-trị-mang-lại)
   - [Giai đoạn hiện tại](#giai-đoạn-hiện-tại)
-  - [Trực quan dữ liệu (Data Visualization)](#trực-quan-dữ-liệu-data-visualization)
+  - [Trực quan hóa dữ liệu (Data Visualization)](#trực-quan-hóa-dữ-liệu-data-visualization)
 
 - [Kiến trúc hệ thống (Architecture)](#kiến-trúc-hệ-thống-architecture)
 - [Công nghệ sử dụng (Tech Stack)](#công-nghệ-sử-dụng-tech-stack)
@@ -65,7 +69,7 @@ Pipeline này giúp:
 > **Repository này mô tả giai đoạn chạy pipeline trong môi trường Docker cục bộ.**
 > Toàn bộ hạ tầng AWS (EC2, Glue, Redshift Serverless) được định nghĩa qua Terraform và đã sẵn sàng để triển khai. Logic của pipeline đã hoạt động đầy đủ và được kiểm thử end-to-end trong Docker.
 
-### Trực quan dữ liệu (Data Visualization)
+### Trực quan hóa dữ liệu (Data Visualization)
 ![User Engagement Dashboard](images/powerbi-dashboard.png)
 ---
 
@@ -169,22 +173,51 @@ IPTV_DE/
 
 ## Lược đồ dữ liệu (Data Schema)
 
-### Dữ liệu thô — Bronze Layer
+### Dữ liệu thô — Landing Layer (S3)
 
-Các file JSON được ingest hàng ngày từ hệ thống IPTV.
-Mỗi record tương ứng với một sự kiện xem của người dùng.
+Dữ liệu được upload lên S3 thông qua script `upload_to_s3.py`. Mỗi file tương ứng với một ngày và được đặt tên theo định dạng `YYYYMMDD.json`.
 
-| Field           | Type   | Mô tả                                             |
-| --------------- | ------ | ------------------------------------------------- |
-| `_index`        | string | Tên index trong Elasticsearch                     |
-| `_type`         | string | Loại document                                     |
-| `_id`           | string | ID sự kiện gốc (sẽ được đổi tên thành `event_id`) |
-| `Contract`      | string | ID thuê bao (khách hàng)                          |
-| `Mac`           | string | Địa chỉ MAC thiết bị (có thể chứa dấu phẩy)       |
-| `TotalDuration` | long   | Thời gian xem (giây, dữ liệu thô chưa validate)   |
-| `AppName`       | string | Tên ứng dụng/kênh được xem                        |
-| `date`          | date   | Ngày phát sinh log                                |
+**Cấu trúc file Landing (Raw Elasticsearch Export):**
 
+Mỗi dòng trong file là một JSON object hoàn chỉnh chứa metadata của Elasticsearch và payload nghiệp vụ nằm trong `_source`.
+
+| Field               | Type   | Mô tả                                          |
+|---------------------|--------|------------------------------------------------|
+| `_index`            | string | Tên index trong Elasticsearch                  |
+| `_type`             | string | Loại document                                  |
+| `_id`               | string | ID sự kiện gốc                                 |
+| `_score`            | float  | Điểm liên quan (không sử dụng)                 |
+| `_source`           | object | **Object chứa dữ liệu nghiệp vụ thực tế**      |
+| `_source.Contract`  | string | ID thuê bao (khách hàng)                       |
+| `_source.Mac`       | string | Địa chỉ MAC thiết bị (có thể chứa dấu phẩy)    |
+| `_source.TotalDuration` | long | Thời gian xem (giây, dữ liệu thô chưa validate) |
+| `_source.AppName`   | string | Tên ứng dụng/kênh được xem                     |
+
+**Ví dụ một dòng trong file `20220401.json`:**
+```json
+{"_index":"history","_type":"channel","_id":"AX_mod8fa1FFivsGq-wr","_score":0,"_source":{"Contract":"BDH013139","Mac":"E4AB8927BC01","TotalDuration":72,"AppName":"CHANNEL"}}
+```
+
+---
+
+### Dữ liệu đã chuẩn hóa — Bronze Layer (S3)
+
+Trong Airflow DAG, task `check_and_prepare` đọc file từ Landing, thực hiện **làm phẳng (flatten)** cấu trúc JSON lồng nhau và tạo ra dữ liệu dạng phẳng (flat JSON) lưu vào Bronze layer. `batch_date` được trích xuất từ tên file (`YYYYMMDD.json`) và được gán vào mỗi bản ghi như một trường để phân vùng.
+
+**Cấu trúc Bronze (Input cho AWS Glue):**
+
+| Field            | Type   | Mô tả                                                       |
+|------------------|--------|-------------------------------------------------------------|
+| `event_id`       | string | Trích xuất từ `_id`                                         |
+| `contract_id`    | string | Trích xuất từ `_source.Contract`                            |
+| `device_mac`     | string | Trích xuất từ `_source.Mac` (chưa chuẩn hóa format)         |
+| `total_duration` | long   | Trích xuất từ `_source.TotalDuration`                       |
+| `app_name`       | string | Trích xuất từ `_source.AppName`                             |
+| `batch_date`     | string | Ngày xử lý, lấy từ tên file (định dạng `YYYYMMDD`)          |
+
+**Lưu ý:**
+- Dữ liệu ở Bronze **chưa được làm sạch** (vẫn có thể chứa giá trị null, duration âm hoặc vượt ngưỡng, MAC chứa dấu phẩy...).
+- Việc kiểm tra chất lượng và chuẩn hóa nghiệp vụ sẽ được thực hiện trong **AWS Glue job** khi chuyển từ Bronze → Silver.
 
 ### Dữ liệu sạch — Silver Layer (Parquet)
 
@@ -379,3 +412,5 @@ Truy vấn từ `mart.fct_daily_views` sau khi hoàn thành pipeline:
 **Nguyen Phuc Vinh**
 - Email: phucvinh235371@gmail.com
 - LinkedIn: [linkedin.com/in/phucvinh235371](https://www.linkedin.com/in/phucvinh235371)
+
+[Quay lại đầu trang](#top)
