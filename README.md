@@ -282,7 +282,8 @@ Dữ liệu base sẽ được rẽ thành nguồn **Fact report sạch** (`stg_
 | `total_hours`             | Tổng thời gian xem (giờ)                     |
 | `avg_minutes_per_session` | Thời gian xem trung bình mỗi phiên (phút)    |
 
-**Trực quan hóa mô hình qua dbt Lineage:**
+**Trực quan hóa mô hình qua dbt Lineage**
+
 ![dbt Lineage Graph](images/dbt-lineage.png)
 ---
 
