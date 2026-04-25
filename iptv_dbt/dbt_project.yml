@@ -29,11 +29,28 @@ clean-targets:         # directories to be removed by `dbt clean`
 # In this example config, we tell dbt to build all models in the example/
 # directory as views. These settings can be overridden in the individual model
 # files using the `{{ config(...) }}` macro.
+
+seeds:
+  iptv_dbt:
+    oui_lookup:
+      +column_types:
+        oui_prefix: varchar(6)
+        vendor_name: varchar(100)
+    app_segments:
+      +column_types:
+        app_name: varchar(50)
+        content_segment: varchar(50)
+
 models:
   iptv_dbt:
-    staging:
+    lv1_staging:
       +schema: staging
       +materialized: view
-    mart:
+    
+    lv2_intermediate:
+      +schema: intermediate
+      +materialized: table
+      
+    lv3_mart:
       +schema: mart
       +materialized: table

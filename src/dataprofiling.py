@@ -140,8 +140,10 @@ def analyze_contract_prefix(df: DataFrame):
     print("\n--- Prefix ma vung Contract ---")
     for n in [2, 3, 4, 5, 6]:
         print(f"  Top prefix {n} ky tu:")
+        # Hiển thị n dòng (ví dụ 100) và không cắt bớt nội dung
         df.withColumn("prefix", regexp_extract(col("Contract"), r"^([A-Z]{" + str(n) + r"})", 1)) \
-          .groupBy("prefix").count().orderBy(col("count").desc()).show(10)
+        .groupBy("prefix").count().orderBy(col("count").desc()) \
+        .show(n=100, truncate=False)
 
 
 def contract_diversity_ratio(df: DataFrame):
@@ -181,6 +183,21 @@ def check_mac_contract_relation(df: DataFrame):
                F.max("contract_count").alias("max"),
                F.avg("contract_count").alias("avg")).show()
     print(f"  Mac co > 1 Contract: {agg.filter(col('contract_count') > 1).count():,}")
+
+
+def analyze_mac_prefix(df: DataFrame, prefix_lengths: list = [6], top_n: int = 100):
+    print("\n--- Phân tích prefix MAC address ---")
+    for length in prefix_lengths:
+        print(f"\n  Top {top_n} prefix {length} ký tự (OUI {'chuẩn' if length == 6 else 'mở rộng'}):")
+        df.withColumn(
+            "prefix",
+            regexp_extract(col("Mac"), r"^([0-9A-Fa-f]{" + str(length) + r"})", 1)
+        ) \
+        .filter(col("prefix") != "") \
+        .groupBy("prefix") \
+        .count() \
+        .orderBy(col("count").desc()) \
+        .show(n=top_n, truncate=False)
 
 
 def validate_duration_type(df: DataFrame):
@@ -232,39 +249,3 @@ def enumerate_appname_values(df: DataFrame):
     print("\n--- AppName (normalized) ---")
     df.withColumn("AppName_normalized", F.upper(trim(col("AppName")))) \
       .groupBy("AppName_normalized").count().orderBy(col("count").desc()).show()
-
-
-if __name__ == "__main__":
-    df_raw  = load_all_files(DATASET_FOLDER)
-    df_flat = flatten_df(df_raw)
-
-    summary_report(df_flat)
-    records_per_day(df_flat)
-
-    check_constant_fields(df_flat)
-    check_id_format(df_flat)
-    check_id_duplicates(df_flat)
-
-    df_clean = drop_missing_rows(df_flat)
-    df_clean = trim_and_check_encoding(df_clean)
-    df_clean.cache()
-    df_clean.count()
-    print("\n  [OK] df_clean cached")
-
-    validate_contract_format(df_clean)
-    analyze_contract_prefix(df_clean)
-    contract_diversity_ratio(df_clean)
-    check_contract_mac_relation(df_clean)
-
-    validate_mac_format(df_clean)
-    check_mac_contract_relation(df_clean)
-
-    validate_duration_type(df_clean)
-    validate_duration_range(df_clean)
-    duration_distribution(df_clean)
-
-    check_type_appname_consistency(df_clean)
-    enumerate_appname_values(df_clean)
-
-    print(f"\nTong thoi gian: {time.time() - start_time:.4f}s")
-    spark.stop()
