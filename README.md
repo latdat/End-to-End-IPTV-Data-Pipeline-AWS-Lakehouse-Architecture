@@ -148,9 +148,11 @@ IPTV_DE/
 │
 ├── iptv_dbt/
 │   ├── models/
-│   │   ├── staging/
-│   │   │   └── stg_viewing_history.sql   # Staging view (clean & rename)
-│   │   └── mart/
+│   │   ├── lv1_staging/
+│   │   │   └── stg_iptv__logs_all.sql    # Base model & cast data
+│   │   │   └── stg_iptv__logs.sql        # Staging view (valid records)
+│   │   │   └── stg_iptv__logs_fraud.sql  # Fraud tracking audit
+│   │   └── lv3_mart/
 │   │       └── fct_daily_views.sql       # Gold fact table (daily aggregation)
 │   ├── tests/                            # dbt data quality tests
 │   ├── dbt_project.yml
@@ -225,39 +227,45 @@ Output từ job AWS Glue, được lưu trên S3 và partition theo year/month/d
 
 | Field                    | Type    | Mô tả                                                      |
 | ------------------------ | ------- | ---------------------------------------------------------- |
-| `event_id`               | string  | ID sự kiện sau khi làm sạch (loại bỏ null)                 |
-| `contract_id`            | string  | ID khách hàng (đã loại bỏ null)                            |
-| `device_mac`             | string  | MAC đã chuẩn hóa (viết hoa, bỏ dấu phẩy)                   |
-| `app_name`               | string  | Tên kênh/app (đã loại bỏ app test BHD)                     |
-| `total_duration_seconds` | integer | Thời gian xem hợp lệ (0 < x ≤ 86400)                       |
-| `batch_date`             | string  | Ngày xử lý dữ liệu (YYYYMMDD)                              |
-| `fraud_label`            | string  | Nhãn gian lận: `normal` / `multi_device` / `fraud_suspect` |
+| `event_id`               | string  | ID sự kiện sau deduplicate                                 |
+| `contract_id`            | string  | ID khách hàng (gồm cả Null/Dị dạng để tracking)            |
+| `device_mac`             | string  | MAC đã chuẩn hóa (nếu format hợp lệ)                       |
+| `app_name`               | string  | Tên kênh/app                                               |
+| `total_duration_seconds` | integer | Thời gian xem (gồm cả thời gian âm/quá hạn)                |
+| `batch_date`             | string  | Ngày xử lý partition (YYYYMMDD)                            |
+| `event_date`             | date    | Ngày sự kiện thực tế phát sinh                             |
+| `is_fraudulent`          | boolean | Cờ đánh dấu dòng dữ liệu lỗi / vi phạm                     |
+| `fraud_reasons`          | string  | Mảng chứa các cảnh báo lỗi (VD: "Missing device_mac")      |
+| `device_flag`            | string  | Nhóm hành vi chia sẻ thiết bị (normal / fraud_suspect)     |
 
 
 **Các bước xử lý trong Glue job:**
-- Đổi tên và ép kiểu các trường theo schema chuẩn
-- Loại bỏ các bản ghi null/empty ở event_id, contract_id, device_mac
-- Lọc dữ liệu với điều kiện: 0 < total_duration_seconds ≤ 86400
-- Loại bỏ dữ liệu test (AppName = 'BHD')
-- Chuẩn hóa MAC address (viết hoa, bỏ dấu phẩy)
-- Loại bỏ bản ghi trùng dựa trên event_id
-- Phát hiện gian lận: đánh dấu các contract có số lượng MAC ≥ fraud_mac_threshold
+- Đổi tên và ép kiểu các trường theo schema chuẩn, sinh ra `event_date`.
+- Ghi nhận lỗi các bản ghi null/empty ở contract_id, device_mac vào `fraud_reasons`.
+- Ghi nhận cảnh báo các mốc thời gian dị thường (âm, quá 24h).
+- Ghi nhận cảnh báo app test nội bộ (AppName = 'BHD').
+- Chuẩn hóa MAC address. Track MAC address sai định dạng vào `fraud_reasons`.
+- Loại bỏ hoàn toàn bản ghi trùng lặp (Dedup) dựa trên event_id.
+- Phát hiện gian lận: cấp nhãn vào `device_flag` và ghi nhận mảng "Too many devices" nếu hợp đồng vượt trần đăng nhập. Bật cờ `is_fraudulent = True` nếu bản ghi có bất kì lỗi nào để báo cáo Audit downstream. Toàn bộ dữ liệu được nạp 100% xuống Silver / Redshift.
 
 ### Dữ liệu phân tích — Gold Layer (Redshift)
 **Grain:** 1 record / (batch_date, app_name)
 
-**`staging.stg_viewing_history`** — Staging view (dbt)
+**`lv1_staging.stg_iptv__logs_all`** — Đầu não Staging view (dbt)
 
 | Field                    | Type                   | Mô tả |
 |--------------------------|------------------------|------|
-| `event_id`               | varchar(255)           | ID sự kiện duy nhất |
+| `event_id`               | varchar(20)            | ID sự kiện duy nhất |
 | `contract_id`            | varchar(255)           | ID thuê bao |
 | `total_duration_seconds` | integer                | Thời gian xem (giây) |
-| `app_name`               | varchar(255)           | Tên kênh/app |
-| `batch_date`             | varchar(20)            | Ngày xử lý (YYYYMMDD) |
-| `event_date`             | date                   | Ngày phát sinh sự kiện |
-| `device_mac`             | varchar(50)            | MAC thiết bị đã chuẩn hóa |
-| `device_flag`            | varchar(50)            | Nhãn phân loại thiết bị (phục vụ phát hiện gian lận) |
+| `total_duration_minutes` | real                   | Thời gian xem (phút) |
+| `app_name`               | varchar(50)            | Tên kênh/app |
+| `batch_date`             | varchar(20)            | Ngày xử lý partition (YYYYMMDD) |
+| `view_year` / `month`    | integer                | Cụm tham số thời gian phái sinh |
+| `is_fraudulent`          | boolean                | Biến kiểm soát rẽ nhánh dữ liệu sạch vs rác |
+| `fraud_reasons`          | varchar                | Tổ hợp mảng tag audit nguyên nhân bị cắm cờ |
+
+Dữ liệu base sẽ được rẽ thành nguồn **Fact report sạch** (`stg_iptv__logs`) với điều kiện lọc rác `is_fraudulent = FALSE`, và báo cáo **Security Audit bẩn** (`stg_iptv__logs_fraud`) đối nghịch.
 
 
 **`mart.fct_daily_views`** — Daily fact table (dbt)
@@ -289,7 +297,7 @@ Output từ job AWS Glue, được lưu trên S3 và partition theo year/month/d
 | `wait_glue_complete` | Kiểm tra trạng thái job Glue mỗi 30s cho đến khi hoàn thành hoặc thất bại (tối đa 1 giờ)                                                   |
 | `copy_to_redshift`   | Xóa dữ liệu cũ theo `batch_date` trong staging, sau đó COPY dữ liệu từ Silver (Parquet)                                                    |
 | `prepare_dbt_vars`   | Đẩy biến `batch_date_sql` vào XCom để dùng cho dbt                                                                                         |
-| `run_dbt`            | Chạy các model dbt (`stg_viewing_history`, `fct_daily_views`)                                                                              |
+| `run_dbt`            | Chạy các model dbt (chia nhanh dữ liệu thông qua `stg_iptv__logs`, aggregate tại `fct_daily_views`)                                         |
 | `test_dbt`           | Chạy test dbt để kiểm tra chất lượng dữ liệu                                                                                               |
 
 
