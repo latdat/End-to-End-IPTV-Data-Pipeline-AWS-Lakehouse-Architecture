@@ -1,4 +1,5 @@
 version: 2
+
 sources:
   - name: staging
     database: dev
@@ -26,7 +27,7 @@ sources:
             tests:
               - not_null
               - accepted_values:
-                  values: ['CHANNEL', 'VOD', 'CHILD', 'KPLUS', 'RELAX', 'SPORT', 'FIMS', 'BHD', 'APP']
+                  values: ['CHANNEL', 'VOD', 'CHILD', 'KPLUS', 'RELAX', 'SPORT', 'FIMS', 'APP']
           - name: batch_date
             tests:
               - not_null

@@ -54,35 +54,35 @@ df = df_raw.select(
 # 2. Add event_date
 df = df.withColumn("event_date", to_date(lit(file_date), "yyyyMMdd"))
 
-# 3. Drop null / empty on critical columns
-df = df.filter(F.col("event_id").isNotNull()) \
-       .filter(F.col("contract_id").isNotNull() & (F.trim(F.col("contract_id")) != "")) \
-       .filter(F.col("device_mac_raw").isNotNull() & (F.trim(F.col("device_mac_raw")) != ""))
-
-# 4. Filter valid total_duration_seconds (0 < x <= 86400)
-df = df.filter((F.col("total_duration_seconds") > 0) & (F.col("total_duration_seconds") <= 86400))
-
-# 5. Remove test app (BHD)
-df = df.filter(F.col("app_name") != "BHD")
-
-# 6. Clean contract_id: keep only valid format
-df = df.filter(F.col("contract_id").rlike(r"^[A-Z]{2,5}\d+$"))
-
-# 7. Validate and NORMALIZE MAC address (standardization)
+# 3. Track fraud reasons instead of dropping
 MAC_PATTERN = r"^[0-9A-Fa-f]{12}$|^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$"
-df = df.filter(F.col("device_mac_raw").rlike(MAC_PATTERN))
 
-# Normalize MAC: remove colons, uppercase
+df = df.withColumn(
+    "fraud_reasons",
+    F.concat_ws(", ",
+        F.when(F.col("event_id").isNull(), "Missing event_id"),
+        F.when(F.col("contract_id").isNull() | (F.trim(F.col("contract_id")) == ""), "Missing contract_id"),
+        F.when(F.col("device_mac_raw").isNull() | (F.trim(F.col("device_mac_raw")) == ""), "Missing device_mac"),
+        F.when((F.col("total_duration_seconds").isNull()) | (F.col("total_duration_seconds") <= 0) | (F.col("total_duration_seconds") > 86400), "Invalid total_duration_seconds"),
+        F.when(F.col("app_name") == "BHD", "Test app BHD"),
+        F.when(F.col("contract_id").isNotNull() & (F.trim(F.col("contract_id")) != "") & (~F.col("contract_id").rlike(r"^[A-Z]{2,5}\d+$")), "Invalid contract_id format"),
+        F.when(F.col("device_mac_raw").isNotNull() & (F.trim(F.col("device_mac_raw")) != "") & (~F.col("device_mac_raw").rlike(MAC_PATTERN)), "Invalid MAC format")
+    )
+)
+
+# 4. Normalize MAC Address for ALL records (if regex matches, otherwise keep original)
 df = df.withColumn(
     "device_mac",
-    upper(regexp_replace(F.col("device_mac_raw"), ":", ""))
+    F.when(F.col("device_mac_raw").rlike(MAC_PATTERN), upper(regexp_replace(F.col("device_mac_raw"), ":", "")))
+     .otherwise(F.col("device_mac_raw"))
 ).drop("device_mac_raw")
 
-# 8. Deduplicate AFTER standardization (important!)
+# 5. Deduplicate
 df = df.dropDuplicates(["event_id"])
 
-# 9. Flag fraud using threshold from parameters
-mac_per_contract = df.groupBy("contract_id") \
+# 6. Flag fraud based on threshold using valid contract_ids only
+mac_per_contract = df.filter(F.col("contract_id").isNotNull() & (F.trim(F.col("contract_id")) != "") & F.col("contract_id").rlike(r"^[A-Z]{2,5}\d+$")) \
+                     .groupBy("contract_id") \
                      .agg(F.countDistinct("device_mac").alias("mac_count"))
 
 df = df.join(mac_per_contract, on="contract_id", how="left") \
@@ -92,22 +92,38 @@ df = df.join(mac_per_contract, on="contract_id", how="left") \
             .otherwise(                                       "fraud_suspect")
        ).drop("mac_count")
 
+# Update fraud_reasons if fraud_suspect
+df = df.withColumn(
+    "fraud_reasons",
+    F.when(
+        F.col("device_flag") == "fraud_suspect",
+        F.when(F.col("fraud_reasons") != "", F.concat_ws(", ", F.col("fraud_reasons"), F.lit("Too many devices")))
+         .otherwise("Too many devices")
+    ).otherwise(F.col("fraud_reasons"))
+)
+
+# 7. Create boolean is_fraudulent
+df = df.withColumn("is_fraudulent", F.col("fraud_reasons") != "")
+
 df.cache()
 record_count = df.count()
 
 # ==================== QUALITY REPORT ====================
 fraud_suspect = df.filter(F.col("device_flag") == "fraud_suspect").count()
 multi_device  = df.filter(F.col("device_flag") == "multi_device").count()
-normal        = df.filter(F.col("device_flag") == "normal").count()
+normal        = df.filter((F.col("device_flag") == "normal") | F.col("device_flag").isNull()).count()
+
+fraudulent_count = df.filter(F.col("is_fraudulent") == True).count()
+valid_count = df.filter(F.col("is_fraudulent") == False).count()
 
 print("="*50)
 print("SILVER TRANSFORMATION SUMMARY")
 print("="*50)
 print(f"Fraud threshold used: {FRAUD_MAC_THRESHOLD}")
-print(f"Records after all cleans : {record_count:,}")
-print(f"  - normal                : {normal:,}")
-print(f"  - multi_device          : {multi_device:,}")
-print(f"  - fraud_suspect         : {fraud_suspect:,}")
+print(f"Total Records             : {record_count:,}")
+print(f"  - Valid records         : {valid_count:,}")
+print(f"  - Fraudulent/Invalid    : {fraudulent_count:,}")
+print(f"    (includes {fraud_suspect:,} fraud_suspect, {multi_device:,} multi_device, {normal:,} normal)")
 print(f"Event date range          : {df.agg(F.min('event_date').alias('min'), F.max('event_date').alias('max')).collect()[0]}")
 print("="*50)
 

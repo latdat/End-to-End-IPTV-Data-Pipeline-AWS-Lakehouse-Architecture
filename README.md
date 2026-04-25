@@ -357,12 +357,12 @@ và tìm file tương ứng trong bronze/ hoặc landing/ trên S3.
 ```bash
 # Cần Pause DAG trên UI trước khi thực hiện lệnh CLI:
 # Trường hợp 1 — Chạy lần đầu
-docker exec -it airflow-airflow-scheduler-1 \
-  airflow dags backfill -s 2022-04-01 -e 2022-04-04 iptv_pipeline
+docker exec -it airflow-airflow-scheduler-1 airflow dags backfill -s 2022-04-01 -e 2022-04-04 iptv_pipeline
 
 # Trường hợp 2 — Reset và chạy lại
-docker exec -it airflow-airflow-scheduler-1 \
-  airflow dags backfill -s 2022-04-01 -e 2022-04-04 --reset-dagruns iptv_pipeline
+docker exec -it airflow-airflow-scheduler-1 airflow dags backfill -s 2022-04-01 -e 2022-04-02 --reset-dagruns iptv_pipeline
+# Trường hợp 3 — Reset và chạy tiếp
+docker exec -it airflow-airflow-scheduler-1 airflow dags backfill -s 2022-04-01 -e 2022-04-02 --reset-dagruns iptv_pipeline --continue-dag-runs
 ```
 
 - Option C: Kích hoạt thủ công (Manual Trigger): Dành cho kiểm thử (Testing). Trên UI, chọn Trigger DAG w/ config và nhập ngày cụ thể: "batch_date": "2022-04-01"
@@ -372,7 +372,7 @@ docker exec -it airflow-airflow-scheduler-1 \
 
 ## Kết quả
 
-Truy vấn từ `mart.fct_daily_views` sau khi hoàn thành pipeline:
+Truy vấn từ `fact_views` sau khi hoàn thành pipeline:
 
 ![Analytics Mart - Fact Daily Views](images/analytics-mart.png)
 

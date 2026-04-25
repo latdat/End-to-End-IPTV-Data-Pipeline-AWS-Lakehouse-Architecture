@@ -1,2 +1,4 @@
 boto3==1.34.0
 python-dotenv==1.0.0
+pandas==2.0.3
+pyspark==3.4.1

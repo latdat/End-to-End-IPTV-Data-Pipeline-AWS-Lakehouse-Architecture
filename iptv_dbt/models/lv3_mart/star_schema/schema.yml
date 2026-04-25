@@ -1,0 +1,89 @@
+version: 2
+
+models:
+  - name: fact_views
+    description: "Bảng ghi lại lịch sử xem truyền hình của người dùng"
+    columns:
+      - name: fact_view_key
+        data_tests:
+          - unique
+          - not_null
+      - name: device_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_device')
+                field: device_key
+      - name: contract_key 
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_contract')
+                field: contract_key
+      - name: app_key 
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_app')
+                field: app_key
+      - name: date_key 
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: duration_seconds 
+        description: "Thời lượng xem tính bằng giây"
+      
+  - name: dim_contract
+    description: "Contract dimension"
+    columns:
+      - name: contract_key
+        description: The primary key for this table
+        data_tests:
+          - unique
+          - not_null
+      - name: contract_id
+      - name: customer_segment
+  
+  - name: dim_device
+    description: "Device dimension"
+    columns:
+      - name: device_key
+        description: The primary key for this table
+        data_tests:
+          - unique
+          - not_null
+      - name: device_mac
+      - name: oui_prefix
+      - name: manufacturer
+      - name: country_code
+      - name: device_type
+
+  - name: dim_date
+    description: "Date dimension"
+    columns:
+      - name: date_key
+        description: The primary key for this table
+        data_tests:
+          - unique
+          - not_null
+      - name: full_date
+      - name: day_of_week
+      - name: month
+      - name: is_holiday
+
+  - name: dim_app
+    description: "App dimension"
+    columns:
+      - name: app_key
+        description: The primary key for this table
+        data_tests:
+          - unique
+          - not_null
+      - name: app_name
+      - name: app_category
