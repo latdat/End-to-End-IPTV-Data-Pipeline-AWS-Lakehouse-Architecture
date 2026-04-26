@@ -3,7 +3,7 @@
 
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![Apache Airflow](https://img.shields.io/badge/Airflow-2.x-017CEE?logo=apacheairflow&logoColor=white)
-![AWS S3](https://img.shields.io/badge/AWS_S3-Lakehouse-FF9900?logo=amazons3&logoColor=white)
+![AWS S3](https://img.shields.io/badge/AWS_S3-Data_Lake-FF9900?logo=amazons3&logoColor=white)
 ![AWS Glue](https://img.shields.io/badge/AWS_Glue-PySpark-FF9900?logo=amazonaws&logoColor=white)
 ![dbt](https://img.shields.io/badge/dbt-1.7-FF694B?logo=dbt&logoColor=white)
 ![Redshift](https://img.shields.io/badge/Redshift-Serverless-8C4FFF?logo=amazonredshift&logoColor=white)
@@ -22,6 +22,7 @@
   - [Giai đoạn hiện tại](#giai-đoạn-hiện-tại)
   - [Trực quan hóa dữ liệu (Data Visualization)](#trực-quan-hóa-dữ-liệu-data-visualization)
 
+- [Tài liệu chi tiết (Detailed Documentation)](#tài-liệu-chi-tiết-detailed-documentation)
 - [Kiến trúc hệ thống (Architecture)](#kiến-trúc-hệ-thống-architecture)
 - [Công nghệ sử dụng (Tech Stack)](#công-nghệ-sử-dụng-tech-stack)
 - [Cấu trúc project (Project Structure)](#cấu-trúc-project-project-structure)
@@ -46,7 +47,7 @@
 ---
 ## Tổng quan
 ### Sơ đồ kiến trúc (Architecture Diagram)
-![Cloud-Native Data Lakehouse Architecture](images/architecture.png)
+![Cloud-Native Medallion Architecture (Bronze → Silver → Gold) on AWS](images/architecture.png)
 ### Vấn đề đặt ra
 
 Các nhà cung cấp IPTV thu thập hàng triệu bản ghi log xem truyền hình thô mỗi ngày, nhưng dữ liệu rất hỗn loạn: thiếu các trường thông tin, thời lượng không hợp lệ, các sự kiện bị trùng lặp và nghi ngờ có các hợp đồng gian lận chia sẻ quá nhiều thiết bị. Nếu không có một pipeline đáng tin cậy, đội ngũ nội dung và kinh doanh không thể trả lời các câu hỏi cơ bản như:
@@ -57,7 +58,7 @@ Các nhà cung cấp IPTV thu thập hàng triệu bản ghi log xem truyền h�
 
 ### Mục tiêu
 
-Xây dựng một Data Lakehouse pipeline hoàn toàn tự động trên AWS để nạp dữ liệu IPTV log thô hàng ngày, làm sạch và biến đổi dữ liệu thông qua Medallion architecture (Bronze → Silver → Gold), nạp vào Redshift và cung cấp các bảng sẵn sàng cho phân tích thông qua dbt, tất cả được điều phối bởi Apache Airflow.
+Xây dựng một data pipeline hoàn toàn tự động trên AWS, áp dụng kiến trúc Medallion (Bronze → Silver → Gold) với Data Lake (S3) và Data Warehouse (Redshift) để nạp dữ liệu IPTV log thô hàng ngày, làm sạch và biến đổi dữ liệu thông qua Medallion architecture (Bronze → Silver → Gold), nạp vào Redshift và cung cấp các bảng sẵn sàng cho phân tích thông qua dbt, tất cả được điều phối bởi Apache Airflow.
 
 ### Giá trị mang lại
 Pipeline này giúp:
@@ -73,9 +74,24 @@ Pipeline này giúp:
 ![User Engagement Dashboard](images/powerbi-dashboard.png)
 ---
 
+## Tài liệu chi tiết (Detailed Documentation)
+
+Dự án đi kèm với bộ tài liệu phân tích kỹ thuật chuyên sâu. Vui lòng tham khảo các liên kết dưới đây để hiểu rõ hơn về các quyết định thiết kế và chi tiết nghiệp vụ:
+
+| Loại tài liệu | Bài viết | Mô tả |
+| :--- | :--- | :--- |
+| **Kiến trúc (Architecture)** |  [1. Kiến trúc hệ thống (Data Stack)](docs/architecture/1.data-stack.md) | Phân tích chi tiết lý do lựa chọn công nghệ (AWS S3, Glue, Redshift, dbt). |
+| |  [2. Luồng dữ liệu (Data Flow)](docs/architecture/2.data-flow.md) | Giải thích chi tiết vòng đời dữ liệu từ lúc tạo ra đến khi lên Dashboard. |
+| **Dữ liệu (Data)** |  [1. Phân tích dữ liệu (Data Profiling)](docs/data/1.profiling.md) | Khảo sát dữ liệu gốc, phát hiện các bất thường (thời lượng âm, null MAC). |
+| |  [2. Từ điển dữ liệu (Data Dictionary)](docs/data/2.dictionary.md) | Định nghĩa schema cho tất cả các bảng ở các lớp Bronze, Silver, và Gold. |
+| |  [3. Mô hình hóa (Data Modeling)](docs/data/3.modeling.md) | Logic áp dụng dbt (3-model structure) và phân tách dữ liệu gian lận. |
+
+---
+
 ## Kiến trúc hệ thống (Architecture)
 Pipeline xử lý theo batch hàng ngày:
 S3 (Landing) → Glue (ETL) → S3 (Silver) → Redshift → dbt (Gold)
+"Đây là kiến trúc Lake + Warehouse: dữ liệu thô và đã làm sạch được lưu trên Data Lake (S3), sau đó được nạp vào Redshift để phục vụ phân tích. Cấu trúc Medallion (Bronze/Silver/Gold) được áp dụng xuyên suốt."
 ```
 Raw JSON Logs 
         │
@@ -117,7 +133,8 @@ Raw JSON Logs
 | Lớp           | Công nghệ                          | Mục đích                                  |
 |------------------|--------------------------------------|------------------------------------------|
 | Orchestration    | Apache Airflow 2.x (Docker)          | Lập lịch DAG, backfill, giám sát    |
-| Storage          | AWS S3                               | Medallion Lakehouse (Landing/Bronze/Silver) |
+| Storage          | AWS S3                               | Data Lake (Bronze/Silver layers)     |
+| Warehouse        | AWS Redshift Serverless              | Gold layer (Analytical queries)      |
 | Processing       | AWS Glue + PySpark                   | Làm sạch dữ liệu, phát hiện gian lận           |
 | Transformation   | dbt-core 1.7 + dbt-redshift          | Mô hình hóa SQL, kiểm thử, lineage           |
 | Warehouse        | AWS Redshift Serverless              | Lớp truy vấn phân tích                 |
@@ -135,22 +152,31 @@ Raw JSON Logs
 
 ## Cấu trúc project (Project Structure)
 
-```
+```text
 IPTV_DE/
 ├── airflow/
 │   ├── dags/
-│   │   └── iptv_daily_pipeline.py   # Main Airflow DAG
+│   │   └── iptv_daily_pipeline.py    # Main Airflow DAG
 │   ├── logs/                         # Airflow task logs
 │   └── plugins/                      # Custom Airflow plugins 
+│
+├── docs/                             # Detailed technical documentation
+│   ├── architecture/
+│   └── data/
+│
+├── glue/
+│   └── bronze_to_silver.py           # PySpark script for Glue ETL & Fraud detection
 │
 ├── ingestion/
 │   └── upload_to_s3.py               # Script to upload raw JSON to S3 landing/
 │
+├── dataset/                          # Sample data files
+│
 ├── iptv_dbt/
 │   ├── models/
 │   │   ├── lv1_staging/
-│   │   │   └── stg_iptv__logs_all.sql    # Base model & cast data
-│   │   │   └── stg_iptv__logs.sql        # Staging view (valid records)
+│   │   │   ├── stg_iptv__logs_all.sql    # Base model & cast data
+│   │   │   ├── stg_iptv__logs.sql        # Staging view (valid records)
 │   │   │   └── stg_iptv__logs_fraud.sql  # Fraud tracking audit
 │   │   └── lv3_mart/
 │   │       └── fct_daily_views.sql       # Gold fact table (daily aggregation)
@@ -267,6 +293,7 @@ Output từ job AWS Glue, được lưu trên S3 và partition theo year/month/d
 
 Dữ liệu base sẽ được rẽ thành nguồn **Fact report sạch** (`stg_iptv__logs`) với điều kiện lọc rác `is_fraudulent = FALSE`, và báo cáo **Security Audit bẩn** (`stg_iptv__logs_fraud`) đối nghịch.
 
+![dbt Data Lineage](images/dbt-lineage.png)
 
 **`mart.fct_daily_views`** — Daily fact table (dbt)
 
