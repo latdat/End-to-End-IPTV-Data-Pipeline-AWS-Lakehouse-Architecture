@@ -1,7 +1,7 @@
 {{ config(
     materialized='table' 
 ) }}
--- 🔎 Insight: Tầng intermediate thường được materialize dạng 'table' hoặc 'ephemeral' 
+-- Tầng intermediate thường được materialize dạng 'table' hoặc 'ephemeral' 
 -- để tối ưu hiệu suất đọc cho tầng Mart phía sau, tránh việc view phải tính toán lại nhiều join phức tạp.
 
 with clean_logs as (

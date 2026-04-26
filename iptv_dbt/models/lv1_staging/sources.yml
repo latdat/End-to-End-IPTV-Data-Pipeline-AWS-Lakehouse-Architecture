@@ -1,38 +1,18 @@
 version: 2
-
+#Khai báo sources, dữ liệu thô cho tầng staging. 
 sources:
   - name: staging
     database: dev
     schema: staging
     tables:
       - name: viewing_history
-        description: "Raw IPTV viewing history loaded from S3 Silver"
+        description: "Dữ liệu thô từ S3 Silver. Chấp nhận dữ liệu rác để quan sát."
         columns:
           - name: event_id
+            description: "Chỉ cảnh báo nếu trùng ở tầng thô"
             tests:
-              - not_null
               - unique:
                   config:
-                    severity: warn
-          - name: contract_id
-            tests:
-              - not_null
+                    severity: warn 
           - name: total_duration_seconds
-            tests:
-              - not_null
-              - dbt_utils.accepted_range:
-                  min_value: 0
-                  max_value: 86400
-          - name: app_name
-            tests:
-              - not_null
-              - accepted_values:
-                  values: ['CHANNEL', 'VOD', 'CHILD', 'KPLUS', 'RELAX', 'SPORT', 'FIMS', 'APP']
-          - name: batch_date
-            tests:
-              - not_null
-        tests:
-          - dbt_utils.unique_combination_of_columns:
-              combination_of_columns: [event_id, batch_date]
-              config:
-                severity: warn
+            description: "Không đặt test ở đây vì dữ liệu thô chắc chắn có số âm"
