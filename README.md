@@ -1,4 +1,4 @@
-# IPTV Viewing History — End-to-End Analytics Pipeline
+# End-to-End IPTV Analytics: A Hybrid Lake-Warehouse Implementation on AWS
 <a name="top"></a>
 
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
