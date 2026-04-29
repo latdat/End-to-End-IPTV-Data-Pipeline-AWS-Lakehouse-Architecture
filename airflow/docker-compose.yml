@@ -72,9 +72,14 @@ services:
     restart: unless-stopped
 
   airflow-scheduler:
-    <<: *airflow-common
-    command: scheduler
-    restart: unless-stopped
+      <<: *airflow-common
+      command: scheduler
+      volumes:
+        - ./dags:/opt/airflow/dags
+        - ./logs:/opt/airflow/logs
+        - ./plugins:/opt/airflow/plugins
+        - ../iptv_dbt:/opt/airflow/iptv_dbt 
+      restart: unless-stopped
 
 volumes:
   postgres_data:

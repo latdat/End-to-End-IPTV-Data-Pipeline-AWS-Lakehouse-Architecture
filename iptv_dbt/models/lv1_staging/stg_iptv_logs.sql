@@ -11,5 +11,5 @@ select
     view_year,
     view_month,
     view_day
-from {{ ref('stg_iptv__logs_all') }}
+from {{ ref('stg_iptv_logs_all') }}
 where is_fraudulent = false

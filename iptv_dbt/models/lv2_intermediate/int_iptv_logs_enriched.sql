@@ -1,11 +1,9 @@
 {{ config(
     materialized='table' 
 ) }}
--- Tầng intermediate thường được materialize dạng 'table' hoặc 'ephemeral' 
--- để tối ưu hiệu suất đọc cho tầng Mart phía sau, tránh việc view phải tính toán lại nhiều join phức tạp.
 
 with clean_logs as (
-    select * from {{ ref('stg_iptv__logs') }}
+    select * from {{ ref('stg_iptv_logs') }}
 ),
 
 app_mapping as (
@@ -18,11 +16,10 @@ oui_mapping as (
 
 enriched_logs as (
     select
-        -- Thông tin gốc từ log
         l.event_id,
         l.contract_id,
         l.device_mac,
-        left(l.device_mac, 6) as mac_oui, -- Trích xuất OUI (6 ký tự đầu)
+        left(l.device_mac, 6) as mac_oui, 
         l.app_name,
         l.total_duration_seconds,
         l.total_duration_minutes,
@@ -38,8 +35,6 @@ enriched_logs as (
         coalesce(o.manufacturer, 'Unknown Manufacturer') as device_manufacturer,
         coalesce(o.country_code, 'Unknown') as device_country
         
-        -- Có thể bổ sung o.address_raw nếu bài toán BI yêu cầu
-        -- o.address_raw as device_manufacturer_address
 
     from clean_logs l
     

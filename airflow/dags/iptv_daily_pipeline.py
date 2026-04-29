@@ -170,10 +170,10 @@ def copy_to_redshift(**context):
 
 def prepare_dbt_vars(**context):
     ti = context["ti"]
-    batch_date_sql = ti.xcom_pull(key="batch_date_sql")
-    if not batch_date_sql:
-        raise AirflowSkipException("No batch_date_sql")
-    ti.xcom_push(key="dbt_batch_date", value=batch_date_sql)
+    batch_date = ti.xcom_pull(key="batch_date")
+    if not batch_date:
+        raise AirflowSkipException("No batch_date")
+    ti.xcom_push(key="dbt_batch_date", value=batch_date)
 
 default_args = {
     "owner": "phucvinh",
