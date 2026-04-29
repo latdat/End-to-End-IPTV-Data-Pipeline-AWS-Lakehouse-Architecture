@@ -1,5 +1,5 @@
 version: 2
-#Khai báo models, tests, descriptions cho tầng staging.
+# Khai báo models, tests, descriptions cho tầng staging.
 models:
   - name: stg_iptv_logs
     description: "Dữ liệu IPTV đã được lọc bỏ is_fraudulent = false"

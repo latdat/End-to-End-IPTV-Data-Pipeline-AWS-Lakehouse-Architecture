@@ -23,5 +23,5 @@ select
 from {{ ref('int_iptv_logs_enriched') }}
 
 {% if is_incremental() %}
-  where batch_date = '{{ var("batch_date") }}'
+  where batch_date = replace('{{ var("batch_date") }}', '-', '')
 {% endif %}

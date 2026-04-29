@@ -46,7 +46,7 @@ df = df_raw.select(
     F.col("_id").alias("event_id"),
     F.col("_source.Contract").alias("contract_id"),
     F.col("_source.Mac").alias("device_mac_raw"),
-    F.col("_source.TotalDuration").cast("integer").alias("total_duration_seconds"),
+    F.col("_source.TotalDuration").cast("long").alias("total_duration_seconds"),
     F.col("_source.AppName").alias("app_name"),
     F.lit(batch_date).alias("batch_date")
 )
@@ -85,6 +85,7 @@ mac_per_contract = df.filter(F.col("contract_id").isNotNull() & (F.trim(F.col("c
                      .groupBy("contract_id") \
                      .agg(F.countDistinct("device_mac").alias("mac_count"))
 
+# left join on = "contrac_id" sẽ bị đưa lên đầu làm cột số 1 dẫn đến event_id bị đẩy qua cột thứ hai => dữ liệu bị đảo chỗ
 df = df.join(mac_per_contract, on="contract_id", how="left") \
        .withColumn("device_flag",
            F.when(F.col("mac_count") == 1,                    "normal")
@@ -128,6 +129,20 @@ print(f"Event date range          : {df.agg(F.min('event_date').alias('min'), F.
 print("="*50)
 
 # ==================== WRITE SILVER ====================
+final_columns = [
+    "event_id",
+    "contract_id",
+    "total_duration_seconds",
+    "app_name",
+    "batch_date", #string - Được dùng làm Partition Key (khóa phân vùng) khi lưu file Parquet xuống S3 (year=2022/month=04/day=01
+    "event_date", #date - Ngày thực tế diễn ra sự kiện xem
+    "fraud_reasons",
+    "device_mac",
+    "device_flag",
+    "is_fraudulent"
+]
+df = df.select(*final_columns)
+
 df.write.mode("overwrite").parquet(OUTPUT_PATH)
 df.unpersist()
 

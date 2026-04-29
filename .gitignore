@@ -31,3 +31,5 @@ airflow/db/
 *.log
 .DS_Store
 .vscode/
+*.pem
+*.key
