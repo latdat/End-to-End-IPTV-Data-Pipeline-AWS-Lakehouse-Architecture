@@ -293,8 +293,6 @@ Output từ job AWS Glue, được lưu trên S3 và partition theo year/month/d
 
 Dữ liệu base sẽ được rẽ thành nguồn **Fact report sạch** (`stg_iptv_logs`) với điều kiện lọc rác `is_fraudulent = FALSE`, và báo cáo **Security Audit bẩn** (`stg_iptv__logs_fraud`) đối nghịch.
 
-![dbt Data Lineage](images/dbt-lineage.png)
-
 **`mart.fct_daily_views`** — Daily fact table (dbt)
 
 | Field                     | Mô tả                                        |
