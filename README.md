@@ -175,9 +175,9 @@ IPTV_DE/
 ├── iptv_dbt/
 │   ├── models/
 │   │   ├── lv1_staging/
-│   │   │   ├── stg_iptv__logs_all.sql    # Base model & cast data
-│   │   │   ├── stg_iptv__logs.sql        # Staging view (valid records)
-│   │   │   └── stg_iptv__logs_fraud.sql  # Fraud tracking audit
+│   │   │   ├── stg_iptv_logs_all.sql    # Base model & cast data
+│   │   │   ├── stg_iptv_logs.sql        # Staging view (valid records)
+│   │   │   └── stg_iptv_logs_fraud.sql  # Fraud tracking audit
 │   │   └── lv3_mart/
 │   │       └── fct_daily_views.sql       # Gold fact table (daily aggregation)
 │   ├── tests/                            # dbt data quality tests
@@ -277,7 +277,7 @@ Output từ job AWS Glue, được lưu trên S3 và partition theo year/month/d
 ### Dữ liệu phân tích — Gold Layer (Redshift)
 **Grain:** 1 record / (batch_date, app_name)
 
-**`lv1_staging.stg_iptv__logs_all`** — Đầu não Staging view (dbt)
+**`lv1_staging.stg_iptv_logs_all`** — Đầu não Staging view (dbt)
 
 | Field                    | Type                   | Mô tả |
 |--------------------------|------------------------|------|
@@ -291,7 +291,7 @@ Output từ job AWS Glue, được lưu trên S3 và partition theo year/month/d
 | `is_fraudulent`          | boolean                | Biến kiểm soát rẽ nhánh dữ liệu sạch vs rác |
 | `fraud_reasons`          | varchar                | Tổ hợp mảng tag audit nguyên nhân bị cắm cờ |
 
-Dữ liệu base sẽ được rẽ thành nguồn **Fact report sạch** (`stg_iptv__logs`) với điều kiện lọc rác `is_fraudulent = FALSE`, và báo cáo **Security Audit bẩn** (`stg_iptv__logs_fraud`) đối nghịch.
+Dữ liệu base sẽ được rẽ thành nguồn **Fact report sạch** (`stg_iptv_logs`) với điều kiện lọc rác `is_fraudulent = FALSE`, và báo cáo **Security Audit bẩn** (`stg_iptv__logs_fraud`) đối nghịch.
 
 ![dbt Data Lineage](images/dbt-lineage.png)
 
@@ -327,7 +327,7 @@ Dữ liệu base sẽ được rẽ thành nguồn **Fact report sạch** (`stg_
 | `wait_glue_complete` | Kiểm tra trạng thái job Glue mỗi 30s cho đến khi hoàn thành hoặc thất bại (tối đa 1 giờ)                                                   |
 | `copy_to_redshift`   | Xóa dữ liệu cũ theo `batch_date` trong staging, sau đó COPY dữ liệu từ Silver (Parquet)                                                    |
 | `prepare_dbt_vars`   | Đẩy biến `batch_date_sql` vào XCom để dùng cho dbt                                                                                         |
-| `run_dbt`            | Chạy các model dbt (chia nhanh dữ liệu thông qua `stg_iptv__logs`, aggregate tại `fct_daily_views`)                                         |
+| `run_dbt`            | Chạy các model dbt (chia nhanh dữ liệu thông qua `stg_iptv_logs`, aggregate tại `fct_daily_views`)                                         |
 | `test_dbt`           | Chạy test dbt để kiểm tra chất lượng dữ liệu                                                                                               |
 
 
