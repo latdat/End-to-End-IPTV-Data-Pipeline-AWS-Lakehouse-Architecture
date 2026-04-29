@@ -410,7 +410,7 @@ docker exec -it airflow-airflow-scheduler-1 airflow dags backfill -s 2022-04-01 
 
 ## Kết quả
 
-Truy vấn từ `fact_views` sau khi hoàn thành pipeline:
+Truy vấn sau khi hoàn thành pipeline:
 
 ![Analytics Mart - Fact Daily Views](images/analytics-mart.png)
 
