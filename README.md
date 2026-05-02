@@ -221,9 +221,12 @@ Mỗi dòng trong file là một JSON object hoàn chỉnh chứa metadata của
 | `_source.TotalDuration` | long | Thời gian xem (giây, dữ liệu thô chưa validate) |
 | `_source.AppName`   | string | Tên ứng dụng/kênh được xem                     |
 
-**Ví dụ một dòng trong file `20220401.json`:**
+**Dữ liệu mẫu**
 ```json
 {"_index":"history","_type":"channel","_id":"AX_mod8fa1FFivsGq-wr","_score":0,"_source":{"Contract":"BDH013139","Mac":"E4AB8927BC01","TotalDuration":72,"AppName":"CHANNEL"}}
+{"_index":"history","_type":"kplus","_id":"AYAkbMF0a1FFivsG1TPM","_score":0,"_source":{"Contract":"SGH597377","Mac":"0C96E6E84A15","AppName":"KPLUS","TotalDuration":6274}}
+{"_index":"history","_type":"child","_id":"AX_w4kTra1FFivsGyXQe","_score":0,"_source":{"Contract":"BIFD35806","Mac":"10394E17B15C","AppName":"CHILD","TotalDuration":309}}
+{"_index":"history","_type":"vod","_id":"AX_ru-5ua1FFivsGrqe2","_score":0,"_source":{"Contract":"DTFD19291","Mac":"B84DEE76AEFC","TotalDuration":46486,"AppName":"VOD"}}
 ```
 
 ---
