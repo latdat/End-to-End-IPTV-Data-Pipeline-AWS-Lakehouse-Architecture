@@ -284,11 +284,11 @@ Output từ job AWS Glue, được lưu trên S3 và partition theo year/month/d
 
 | Field                    | Type                   | Mô tả |
 |--------------------------|------------------------|------|
-| `event_id`               | varchar(20)            | ID sự kiện duy nhất |
-| `contract_id`            | varchar(255)           | ID thuê bao |
+| `event_id`               | varchar(30)            | ID sự kiện duy nhất |
+| `contract_id`            | varchar(30)           | ID thuê bao |
 | `total_duration_seconds` | integer                | Thời gian xem (giây) |
 | `total_duration_minutes` | real                   | Thời gian xem (phút) |
-| `app_name`               | varchar(50)            | Tên kênh/app |
+| `app_name`               | varchar(20)            | Tên kênh/app |
 | `batch_date`             | varchar(20)            | Ngày xử lý partition (YYYYMMDD) |
 | `view_year` / `month`    | integer                | Cụm tham số thời gian phái sinh |
 | `is_fraudulent`          | boolean                | Biến kiểm soát rẽ nhánh dữ liệu sạch vs rác |
