@@ -327,7 +327,6 @@ Dữ liệu base sẽ được rẽ thành nguồn **Fact report sạch** (`stg_
 | `trigger_glue_job`   | Khởi chạy job AWS Glue (PySpark) với input/output trên S3 và tham số fraud threshold                                                       |
 | `wait_glue_complete` | Kiểm tra trạng thái job Glue mỗi 30s cho đến khi hoàn thành hoặc thất bại (tối đa 1 giờ)                                                   |
 | `copy_to_redshift`   | Xóa dữ liệu cũ theo `batch_date` trong staging, sau đó COPY dữ liệu từ Silver (Parquet)                                                    |
-| `prepare_dbt_vars`   | Đẩy biến `batch_date_sql` vào XCom để dùng cho dbt                                                                                         |
 | `run_dbt`            | Chạy các model dbt (chia nhanh dữ liệu thông qua `stg_iptv_logs`, aggregate tại `fct_daily_views`)                                         |
 | `test_dbt`           | Chạy test dbt để kiểm tra chất lượng dữ liệu                                                                                               |
 

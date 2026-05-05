@@ -111,7 +111,7 @@ def parse_args():
         description="Upload file JSON từ dataset lên S3",
         formatter_class=argparse.RawTextHelpFormatter,
         epilog="""
-Ví dụ sử dụng:
+Cách sử dụng:
   # Upload 1 file cụ thể
   python ingestion/upload_to_s3.py --file 20220404.json
 
