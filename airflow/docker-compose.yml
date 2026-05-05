@@ -1,7 +1,7 @@
 version: '3.8'
 
 x-airflow-common: &airflow-common
-  build: .                         
+  build: .
   environment:
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
     AIRFLOW__CORE__FERNET_KEY: ${FERNET_KEY}
@@ -9,21 +9,30 @@ x-airflow-common: &airflow-common
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
     AIRFLOW__WEBSERVER__SECRET_KEY: ${SECRET_KEY}
+
+    # AWS credentials — luôn đọc từ .env, không hardcode
     AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
     AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
     AWS_DEFAULT_REGION: ap-southeast-1
+
+    # Pipeline config
     S3_BUCKET: iptv-latdat-bucket
     REDSHIFT_WORKGROUP: iptv-workgroup
     REDSHIFT_DATABASE: dev
-    REDSHIFT_IAM_ROLE: arn:aws:iam::541804384956:role/service-role/AmazonRedshift-CommandsAccessRole-20260327T134827
+    REDSHIFT_IAM_ROLE: ${REDSHIFT_IAM_ROLE}  
+
+    # dbt config — khai báo tường minh, không phụ thuộc vào default trong DAG
     DBT_PROJECT_DIR: /opt/airflow/iptv_dbt
     DBT_PROFILES_DIR: /opt/airflow/iptv_dbt
+    DBT_BIN: /home/airflow/.local/bin/dbt
+
   volumes:
     - ./dags:/opt/airflow/dags
     - ./logs:/opt/airflow/logs
     - ./plugins:/opt/airflow/plugins
     - ./config:/opt/airflow/config
-    - ../iptv_dbt:/opt/airflow/iptv_dbt   
+    - ../iptv_dbt:/opt/airflow/iptv_dbt
+
   depends_on:
     postgres:
       condition: service_healthy
@@ -72,14 +81,11 @@ services:
     restart: unless-stopped
 
   airflow-scheduler:
-      <<: *airflow-common
-      command: scheduler
-      volumes:
-        - ./dags:/opt/airflow/dags
-        - ./logs:/opt/airflow/logs
-        - ./plugins:/opt/airflow/plugins
-        - ../iptv_dbt:/opt/airflow/iptv_dbt 
-      restart: unless-stopped
+    <<: *airflow-common
+    command: scheduler
+    # Không khai báo lại volumes — Docker Compose không merge list,
+    # khai báo lại sẽ override hoàn toàn anchor và mất plugins/ + config/ mount.
+    restart: unless-stopped
 
 volumes:
   postgres_data:

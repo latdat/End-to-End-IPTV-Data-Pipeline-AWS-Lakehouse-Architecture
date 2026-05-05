@@ -41,7 +41,7 @@ df_raw = spark.read.json(INPUT_PATH)
 
 # ==================== TRANSFORMATIONS ====================
 
-# 1. Select, rename, cast
+# 1. Select, rename, cast, lưu ý ép đúng kiểu với trên redshift tạo sau này.
 df = df_raw.select(
     F.col("_id").alias("event_id"),
     F.col("_source.Contract").alias("contract_id"),

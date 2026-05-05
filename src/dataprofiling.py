@@ -33,6 +33,13 @@ def load_all_files(folder_path: str) -> DataFrame:
 
 
 def flatten_df(df: DataFrame) -> DataFrame:
+    """
+    Làm phẳng cấu trúc dữ liệu JSON lồng ghép (nested) và đổi tên các cột sang định dạng chuẩn.
+    Args:
+        df (DataFrame): DataFrame thô có cấu trúc lồng nhau trong `_source`.
+    Returns:
+        DataFrame: DataFrame đã được làm phẳng.
+    """
     return df.select(
         col("_index"),
         col("_type"),
@@ -113,7 +120,7 @@ def drop_missing_rows(df: DataFrame) -> DataFrame:
     print(f"  Truoc: {before:,}  |  Sau: {after:,}  |  Loai bo: {before - after:,}")
     return df_clean
 
-
+# Xóa khoảng trắng thừa ở hai đầu chuỗi và kiểm tra chuỗi có chứa ký tự non-ASCII bất thường không.
 def trim_and_check_encoding(df: DataFrame) -> DataFrame:
     print("\n6. ENCODING & TRIMMING")
     for c in ["Contract", "Mac", "AppName", "_index", "_type"]:
@@ -135,7 +142,7 @@ def validate_contract_format(df: DataFrame):
     if invalid > 0:
         df.filter(~col("Contract").rlike(r"^[A-Z]{2,6}\d+$")).select("Contract").distinct().show(10)
 
-
+# Phân tích và thống kê top các prefix (mã vùng/mã dịch vụ) của cột `Contract`.
 def analyze_contract_prefix(df: DataFrame):
     print("\n--- Prefix ma vung Contract ---")
     for n in [2, 3, 4, 5, 6]:
@@ -175,7 +182,7 @@ def validate_mac_format(df: DataFrame):
     if total - valid > 0:
         df.filter(~col("Mac").rlike(p1) & ~col("Mac").rlike(p2)).select("Mac").distinct().show(10)
 
-
+#Kiểm tra mối quan hệ 1-N giữa `Mac` và `Contract` (một thiết bị MAC được dùng cho bao nhiêu hợp đồng).
 def check_mac_contract_relation(df: DataFrame):
     print("\n--- Quan he Mac <-> Contract ---")
     agg = df.groupBy("Mac").agg(countDistinct("Contract").alias("contract_count"))
@@ -184,7 +191,7 @@ def check_mac_contract_relation(df: DataFrame):
                F.avg("contract_count").alias("avg")).show()
     print(f"  Mac co > 1 Contract: {agg.filter(col('contract_count') > 1).count():,}")
 
-
+# Phân tích và thống kê top các OUI prefix của địa chỉ MAC.
 def analyze_mac_prefix(df: DataFrame, prefix_lengths: list = [6], top_n: int = 100):
     print("\n--- Phân tích prefix MAC address ---")
     for length in prefix_lengths:
@@ -220,7 +227,7 @@ def validate_duration_range(df: DataFrame):
         df.filter((col("TotalDuration") <= 0) | (col("TotalDuration") > 86400)) \
           .select("TotalDuration").describe().show()
 
-
+# Phân tích sự phân phối của cột `TotalDuration` và tính thời lượng xem trung bình mỗi ngày.
 def duration_distribution(df: DataFrame):
     print("\n--- Phan phoi TotalDuration ---")
     df.select("TotalDuration").describe().show()
@@ -244,7 +251,7 @@ def check_type_appname_consistency(df: DataFrame):
     else:
         print(f"  [WARN] {mismatch:,} dong khong khop -> GIU lai ca 2")
 
-
+# Chuẩn hóa cột `AppName` (viết hoa) và thống kê tần suất xuất hiện của từng ứng dụng.
 def enumerate_appname_values(df: DataFrame):
     print("\n--- AppName (normalized) ---")
     df.withColumn("AppName_normalized", F.upper(trim(col("AppName")))) \
