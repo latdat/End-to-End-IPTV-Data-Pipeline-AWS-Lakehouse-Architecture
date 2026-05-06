@@ -364,6 +364,7 @@ AWS_ACCESS_KEY_ID=your-access-key
 AWS_SECRET_ACCESS_KEY=your-secret-key
 DBT_PROJECT_DIR=/opt/airflow/iptv_dbt
 DBT_PROFILES_DIR=/opt/airflow/iptv_dbt
+DBT_BIN=/home/airflow/.local/bin/dbt
 ```
 
 **3. Khởi chạy airflow**
@@ -374,7 +375,7 @@ docker-compose up -d
 ```bash
 docker ps
 ```
-Đảm bảo thấy `airflow-scheduler`, `airflow-webserver`, `airflow-worker` đều ở trạng thái `healthy`.
+Đảm bảo thấy `airflow-scheduler`, `airflow-webserver` đều ở trạng thái `healthy`.
 
 **4. Truy cập Airflow UI**
 
@@ -387,9 +388,8 @@ python ingestion/upload_to_s3.py --date 2022-04-01
 
 **6. Khởi chạy pipeline (3 lựa chọn)**
 
-- Option A: Tự động (Scheduler): Dành cho dữ liệu hằng ngày.
-Airflow sẽ tự động chạy mỗi ngày, đọc batch_date từ execution_date
-và tìm file tương ứng trong bronze/ hoặc landing/ trên S3.
+- Option A: Kích hoạt qua API (Production): Dành cho dữ liệu hằng ngày.
+Hệ thống upstream upload file lên S3 landing/ rồi trigger DAG qua Airflow API.
 
 - Option B: Chạy bù dữ liệu lịch sử (Backfill): Dành cho nạp dữ liệu quá khứ.
 ```bash
@@ -403,7 +403,8 @@ docker exec -it airflow-airflow-scheduler-1 airflow dags backfill -s 2022-04-01 
 docker exec -it airflow-airflow-scheduler-1 airflow dags backfill -s 2022-04-01 -e 2022-04-02 --reset-dagruns iptv_pipeline --continue-dag-runs
 ```
 
-- Option C: Kích hoạt thủ công (Manual Trigger): Dành cho kiểm thử (Testing). Trên UI, chọn Trigger DAG w/ config và nhập ngày cụ thể: "batch_date": "2022-04-01"
+- Option C: Kích hoạt thủ công (Manual Trigger): Dành cho kiểm thử (Testing). Trên UI chọn Trigger DAG w/ config và nhập logical date.
+Hoặc dùng CLI: airflow dags trigger iptv_pipeline --logical-date 2022-04-04T00:00:00+00:00
 
 
 ---
